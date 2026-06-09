@@ -1,11 +1,13 @@
+import asyncio
 import pygame
+
 
 # constants
 CANVAS_WIDTH = 400
 CANVAS_HEIGHT = 400
 IMAGE_SIZE = 80
 
-def main():
+async def main():
     # initialize pygame systems, it's like turning on the engine #choochoo
     pygame.init()
 
@@ -19,6 +21,7 @@ def main():
     user = set_up_user()
 
     while True:
+
         # every frame pygame collects a list of things of what happened — mouse clicks,
         # key presses, windows closing etc. We loop through it to check what happened
         for event in pygame.event.get():
@@ -32,7 +35,6 @@ def main():
                 if event.key == pygame.K_RIGHT:
                     user['x'] += 5
 
-            if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
                     user['x'] -= 5
 
@@ -46,6 +48,8 @@ def main():
         pygame.display.flip()
 
         clock.tick(60)
+
+        await asyncio.sleep(0)
 
 def set_up_user():
     x = CANVAS_WIDTH/2 - IMAGE_SIZE/2
@@ -64,5 +68,4 @@ def set_up_user():
         'walking': walking
     }
 
-if __name__ == '__main__':
-    main()
+asyncio.run(main())
