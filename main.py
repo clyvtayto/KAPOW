@@ -8,7 +8,7 @@ CANVAS_HEIGHT = 400
 IMAGE_SIZE = 80
 VELOCITY = 8
 
-WALK_TIMER = 8 # this runs 8/60 seconds
+WALK_TIMER = 6 # this runs 6/60 seconds
 
 async def main():
     # INITialize pygame systems, it's like turning on the engine #choochoo
