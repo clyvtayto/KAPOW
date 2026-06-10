@@ -9,6 +9,9 @@ IMAGE_SIZE = 80
 VELOCITY = 8
 
 WALK_TIMER = 6 # this runs 6/60 seconds
+# separate punch and block timer in case I wanna change either
+PUNCH_TIMER = 8 
+BLOCK_TIMER = 7
 
 async def main():
     # INITialize pygame systems, it's like turning on the engine #choochoo
@@ -24,10 +27,12 @@ async def main():
     # await allows 
     await game_loop(screen, user, clock)
 
+# this is what makes the game run!
 async def game_loop(screen, user, clock):
+    
     while True:
         
-        # this resets user character to standing image 
+        # this resets user character to standing image so the animation will reset
         user['current_frame'] = user['standing']
 
         # every frame pygame collects a list of things of what happened — mouse clicks,
@@ -39,35 +44,12 @@ async def game_loop(screen, user, clock):
             if event.type == pygame.QUIT:
                 pygame.quit()
 
-            # this resets the direction every frame
-            direction = None
+            user_controls(event,user)
 
-            direction = detect_mobile_input(event)
+        # this sets the number of frames, and has to be OUTSIDE the loop because it resets based on the event NOT duration
+        handle_timer(user)
 
-            # KEYDOWN fires when a key is pressed, KEYUP fires when a key is released
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RIGHT:
-                    direction = 'right'
-            
-                elif event.key == pygame.K_LEFT:
-                    direction = 'left'
-
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                direction = detect_mobile_input(event)
-
-            if direction == 'right':
-                    user['x'] += VELOCITY
-                    animate(user, 'walking')
-
-            elif direction == 'left':
-                    user['x'] -= VELOCITY
-                    animate(user, 'walking')
-
-        # this handles the animation of the walking image, running it for WALK_TIMER frames
-        if user['walk_timer'] > 0:
-                        user['current_frame'] = user['walking']
-                        user['walk_timer'] -= 1
-
+        # this handles the loop of layering the canvas, and all the images in each iteration 
         draw(screen, user)
 
         # this limits the game to 60 frames per second, so that the human eye can perceive changes
@@ -76,15 +58,77 @@ async def game_loop(screen, user, clock):
         # this provides breathing room for the browser, providing a pause point
         await asyncio.sleep(0)
 
+# this converts input into action and animates the respective actions 
+def user_controls(event,user):
+            
+            # this resets the direction every frame
+            direction = None
+
+            # KEYDOWN fires when a key is pressed, KEYUP fires when a key is released
+            if event.type == pygame.KEYDOWN:
+
+                if event.key == pygame.K_LEFT:
+                    direction = 'left'
+                
+                elif event.key == pygame.K_RIGHT:
+                    direction = 'right'
+
+                elif event.key == pygame.K_UP:
+                    direction = 'up'
+
+                elif event.key == pygame.K_DOWN:
+                    direction = 'down' 
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                direction = detect_mobile_input(event)
+
+            if direction == 'left':
+                    user['x'] -= VELOCITY
+                    animate(user, 'walking')
+
+            elif direction == 'right':
+                    user['x'] += VELOCITY
+                    animate(user, 'walking')
+
+            elif direction == 'up':
+                    animate(user, 'punching')
+
+            elif direction == 'down':
+                    animate(user, 'blocking')
+
+# this function counts down the different timer each action lasts, each have their respective timings
+def handle_timer(user):
+        # this handles the animation of the walking image, running it for WALK_TIMER frames
+        if user['walk_timer'] > 0:
+            user['current_frame'] = user['walking']
+            user['walk_timer'] -= 1
+
+        elif user['punch_timer'] > 0:
+            user['current_frame'] = user['punching']
+            user['punch_timer'] -= 1
+
+        elif user['block_timer'] > 0:
+            user['current_frame'] = user['blocking']
+            user['block_timer'] -=1
+
 # this hides the standing image for a moment, show action image, then show standing image again
 def animate(user, action):
+
     user['current_frame'] = user[f'{action}']
 
     if action == 'walking':
         user['walk_timer'] = WALK_TIMER
-    
-        
+
+    if action == 'punching':
+        # this sets
+        user['punch_timer'] = PUNCH_TIMER
+
+    if action == 'blocking':
+        user['block_timer'] = BLOCK_TIMER
+
+# this returns a bunch of images, x and y coordinates in a dictionary and will be referenced constantly
 def set_up_user():
+    # starting coordinates for the user
     left_x = CANVAS_WIDTH/2 - IMAGE_SIZE/2
     top_y = CANVAS_HEIGHT/2 - IMAGE_SIZE/2
 
@@ -94,14 +138,25 @@ def set_up_user():
     walking = pygame.image.load('flushedwalking.png')
     walking = pygame.transform.scale(walking, (IMAGE_SIZE, IMAGE_SIZE))
 
+    punching = pygame.image.load('flushedpunching.png')
+    punching = pygame.transform.scale(punching, (IMAGE_SIZE, IMAGE_SIZE))
+
+    blocking = pygame.image.load('flushedblocking.png')
+    blocking = pygame.transform.scale(blocking, (IMAGE_SIZE, IMAGE_SIZE))
+
     return {
         'x': left_x,
         'y': top_y,
         'standing': standing,
         'walking': walking,
+        'punching': punching,
+        'blocking': blocking,
         'walk_timer': 0,
+        'punch_timer': 0,
+        'block_timer': 0,
         'current_frame': standing,
     }
+
 # this function fills the canvas with white, draws current frame, and updates display every frame
 def draw(screen, user):
 
@@ -117,6 +172,7 @@ def draw(screen, user):
     # this updates the display, kinda like publishing the whole image as a whole
     pygame.display.flip()
 
+# this creates the triangles so that mobile users can enjoy!
 def create_mobile_controls(screen):
 
     # similar concept to CIP's canvas.create_polygon, covering canvas, colour and coordinates
@@ -140,6 +196,7 @@ def create_mobile_controls(screen):
                                     [(350, 380), (320, 320), (380, 320)],
                                     2)
 
+# this returns the intended input into commands through checking which position is clicked
 def detect_mobile_input(event):
 
     if event.type == pygame.MOUSEBUTTONDOWN:
@@ -155,6 +212,6 @@ def detect_mobile_input(event):
                 return 'up'
             elif 320 <= x <= 380 and 320 <= y <= 380:
                 return 'down'
-         
 
+# this is the if __name__ == __main__ kinda equivilant but asyncio version    
 asyncio.run(main())
