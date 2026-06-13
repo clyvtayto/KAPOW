@@ -1,9 +1,8 @@
 import asyncio
 import pygame
-
+import random
 
 # constants
-
 # image handling
 CANVAS_WIDTH = 400
 CANVAS_HEIGHT = 400
@@ -16,6 +15,12 @@ WALK_TIMER = 6 # this runs 6/60 seconds
 # separate punch and block timer in case I wanna change either
 PUNCH_TIMER = 8 
 BLOCK_TIMER = 7
+
+# opponent movement
+OPPO_FORWARD_CHANCE = 0.02
+OPPO_BACKWARD_CHANCE = 0.007
+OPPO_PUNCH_CHANCE = 0.02
+OPPO_BLOCK_CHANCE = 0.01
 
 async def main():
     # INITialize pygame systems, it's like turning on the engine #choochoo
@@ -38,10 +43,11 @@ async def main():
 # this is what makes the game run!
 async def game_loop(screen, user, oppo, clock):
     
-    while oppo['health'] > 0:
+    while oppo['health'] > 0 and user['health'] > 0:
         
         # this resets user character to standing image so the animation will reset
         user['current_frame'] = user['standing']
+        oppo['current_frame'] = oppo['standing']
 
         # every frame pygame collects a list of things of what happened — mouse clicks,
         # key presses, windows closing etc. We loop through it to check what happened
@@ -52,11 +58,18 @@ async def game_loop(screen, user, oppo, clock):
             if event.type == pygame.QUIT:
                 pygame.quit()
 
+            # input buffering, prevents input spamming, only allowing inputs when the user is NOT currently animating
             if user['animating'] == False:
-                user_controls(event,user, oppo)
+                user_controls(event,user,oppo)
+
+        # again this can't be in the loop because it wont account for the animation because
+        # it's dependent on each event
+        if oppo['animating'] == False:
+            opponent_movement(oppo,user)
 
         # this sets the number of frames, and has to be OUTSIDE the loop because it resets based on the event NOT duration
         handle_timer(user)
+        handle_timer(oppo)
 
         # this handles the loop of layering the canvas, and all the images in each iteration 
         draw(screen, user, oppo)
@@ -116,46 +129,46 @@ def user_controls(event,user,oppo):
             pygame.event.get() # added to get one more the programme to reset the event???
 
 # this function counts down the different timer each action lasts, each have their respective timings
-def handle_timer(user):
+def handle_timer(character):
 
         # this handles the animation of the walking image, running it for WALK_TIMER frames
-        if user['walk_timer'] > 0:
-            user['animating'] = True
-            user['current_frame'] = user['walking']
-            user['walk_timer'] -= 1
+        if character['walk_timer'] > 0:
+            character['animating'] = True
+            character['current_frame'] = character['walking']
+            character['walk_timer'] -= 1
 
-        elif user['punch_timer'] > 0:
-            user['animating'] = True
-            user['current_frame'] = user['punching']
-            user['punch_timer'] -= 1
+        elif character['punch_timer'] > 0:
+            character['animating'] = True
+            character['current_frame'] = character['punching']
+            character['punch_timer'] -= 1
 
-        elif user['block_timer'] > 0:
-            user['animating'] = True
-            user['current_frame'] = user['blocking']
-            user['block_timer'] -=1
+        elif character['block_timer'] > 0:
+            character['animating'] = True
+            character['current_frame'] = character['blocking']
+            character['block_timer'] -=1
 
         else: # this only runs if all timers are at 0
-            user['animating'] = False
+            character['animating'] = False
 
-# this hides the standing image for a moment, show action image, then show standing image again
-def animate(user, action):
+# this doesn't actually do the animation but it sets the current frame to the animating frame
+# and starts the timer on how long the animation will last
+def animate(character, action):
 
-    user['current_frame'] = user[f'{action}']
+    character['current_frame'] = character[f'{action}']
 
     if action == 'walking':
-        user['walk_timer'] = WALK_TIMER
+        character['walk_timer'] = WALK_TIMER
 
-    if action == 'punching':
-        # this sets
-        user['punch_timer'] = PUNCH_TIMER
+    elif action == 'punching':
+        character['punch_timer'] = PUNCH_TIMER
 
-    if action == 'blocking':
-        user['block_timer'] = BLOCK_TIMER
+    elif action == 'blocking':
+        character['block_timer'] = BLOCK_TIMER
 
 # this returns a bunch of images, x and y coordinates in a dict and will be referenced constantly
 def set_up_user():
     # starting coordinates for the user
-    left_x = CANVAS_WIDTH/2 - IMAGE_SIZE/2
+    left_x = -15
     top_y = CANVAS_HEIGHT/2 - IMAGE_SIZE/2
 
     standing = pygame.image.load('flushedstanding.png')
@@ -271,9 +284,26 @@ def set_up_opponent():
         'punch_timer': 0,
         'block_timer': 0,
         'current_frame': standing,
+        'animating': False,
         'health': 3
     }
 
+def opponent_movement(oppo, user):
+
+    roll = random.random()
+
+    if roll <= OPPO_FORWARD_CHANCE: # 0 - 0.02
+        # this checks if the opponent is touching gloves w the user, if there is still space
+        # proceed to move forward or LEFT
+        if oppo['x'] > user['x'] + IMAGE_SIZE - OFFSET:
+            oppo['x'] -= VELOCITY
+            animate(oppo,'walking')
+
+    elif OPPO_FORWARD_CHANCE < roll < OPPO_FORWARD_CHANCE + OPPO_BACKWARD_CHANCE: # 0.02 - 0.035
+        if oppo['x'] + IMAGE_SIZE - OFFSET < CANVAS_WIDTH:
+            oppo['x'] += VELOCITY
+            animate(oppo,'walking')
+    
 
 # this is the if __name__ == __main__ kinda equivilant but asyncio version    
 asyncio.run(main())
